@@ -10,5 +10,9 @@
   {
     "repo": "https://github.com/WASasquatch/was-node-suite-comfyui",
     "commit": "72290fc"
+  },
+  {
+    "repo": "https://github.com/Derfuu/Derfuu_ComfyUI_ModdedNodes",
+    "commit": "5c93bd1"
   }
 ]

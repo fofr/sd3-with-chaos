@@ -17,8 +17,6 @@ COMFYUI_TEMP_OUTPUT_DIR = "ComfyUI/temp"
 ALL_DIRECTORIES = [OUTPUT_DIR, INPUT_DIR, COMFYUI_TEMP_OUTPUT_DIR]
 
 mimetypes.add_type("image/webp", ".webp")
-
-# Save your example JSON to the same directory as predict.py
 api_json_file = "workflow_api.json"
 
 
@@ -35,82 +33,110 @@ class Predictor(BasePredictor):
             weights_to_download=[],
         )
 
-    def handle_input_file(
-        self,
-        input_file: Path,
-        filename: str = "image.png",
-        check_orientation: bool = True,
-    ):
-        image = Image.open(input_file)
+    def chaos_to_denoise(self, chaos: int):
+        denoise_values = {
+            0: 1.0,
+            1: 0.99,
+            2: 0.98,
+            3: 0.97,
+            4: 0.96,
+            5: 0.95,
+            6: 0.94,
+            7: 0.93,
+            8: 0.92,
+            9: 0.91,
+            10: 0.90,
+        }
+        return denoise_values.get(chaos)
 
-        if check_orientation:
-            try:
-                for orientation in ExifTags.TAGS.keys():
-                    if ExifTags.TAGS[orientation] == "Orientation":
-                        break
-                exif = dict(image._getexif().items())
-
-                if exif[orientation] == 3:
-                    image = image.rotate(180, expand=True)
-                elif exif[orientation] == 6:
-                    image = image.rotate(270, expand=True)
-                elif exif[orientation] == 8:
-                    image = image.rotate(90, expand=True)
-            except (KeyError, AttributeError):
-                # EXIF data does not have orientation
-                # Do not rotate
-                pass
-
-        image.save(os.path.join(INPUT_DIR, filename))
+    def aspect_ratio_to_width_height(self, aspect_ratio: str):
+        aspect_ratios = {
+            "1:1": (1024, 1024),
+            "16:9": (1344, 768),
+            "21:9": (1536, 640),
+            "3:2": (1216, 832),
+            "2:3": (832, 1216),
+            "4:5": (896, 1088),
+            "5:4": (1088, 896),
+            "9:16": (768, 1344),
+            "9:21": (640, 1536),
+        }
+        return aspect_ratios.get(aspect_ratio)
 
     # Update nodes in the JSON workflow to modify your workflow based on the given inputs
     def update_workflow(self, workflow, **kwargs):
-        # Below is an example showing how to get the node you need and update the inputs
+        positive_prompt = workflow["282"]["inputs"]
+        positive_prompt["Text"] = kwargs["prompt"]
 
-        # positive_prompt = workflow["6"]["inputs"]
-        # positive_prompt["text"] = kwargs["prompt"]
+        sampler = workflow["297"]["inputs"]
+        sampler["cfg"] = kwargs["guidance_scale"]
+        sampler["denoise"] = kwargs["denoise"]
 
-        # negative_prompt = workflow["7"]["inputs"]
-        # negative_prompt["text"] = f"nsfw, {kwargs['negative_prompt']}"
+        empty_latent_image = workflow["342"]["inputs"]
+        empty_latent_image["width"] = kwargs["width"]
+        empty_latent_image["height"] = kwargs["height"]
+        empty_latent_image["batch_size"] = kwargs["number_of_images"]
 
-        # sampler = workflow["3"]["inputs"]
-        # sampler["seed"] = kwargs["seed"]
-        pass
+        if kwargs["weird"]:
+            content_shuffle = workflow["404"]["inputs"]
+            content_shuffle["resolution"] = kwargs["width"]
+
+            workflow["381"]["inputs"]["image"] = ["404", 0]
+            empty_latent_image["weird"] = True
 
     def predict(
         self,
         prompt: str = Input(
             default="",
         ),
-        negative_prompt: str = Input(
-            description="Things you do not want to see in your image",
-            default="",
+        chaos: int = Input(
+            description="Higher values lead to more variation in image outputs",
+            le=10,
+            ge=0,
+            default=5,
         ),
-        image: Path = Input(
-            description="An input image",
-            default=None,
+        weird: bool = Input(
+            description="If true, the outputs will be a lot weirder because they will be forced into more unusual compositions.",
+            default=False,
+        ),
+        aspect_ratio: str = Input(
+            choices=["1:1", "16:9", "21:9", "2:3", "3:2", "4:5", "5:4", "9:16", "9:21"],
+            default="1:1",
+        ),
+        guidance_scale: float = Input(
+            description="The guidance scale tells the model how similar the output should be to the prompt.",
+            le=20,
+            ge=0,
+            default=4.5,
+        ),
+        number_of_images: int = Input(
+            description="The number of images to generate",
+            le=10,
+            ge=1,
+            default=1,
         ),
         output_format: str = optimise_images.predict_output_format(),
         output_quality: int = optimise_images.predict_output_quality(),
-        seed: int = seed_helper.predict_seed(),
     ) -> List[Path]:
         """Run a single prediction on the model"""
         self.comfyUI.cleanup(ALL_DIRECTORIES)
 
-        # Make sure to set the seeds in your workflow
-        seed = seed_helper.generate(seed)
-
-        if image:
-            self.handle_input_file(image)
+        width, height = self.aspect_ratio_to_width_height(aspect_ratio)
+        denoise = self.chaos_to_denoise(chaos)
 
         with open(api_json_file, "r") as file:
             workflow = json.loads(file.read())
 
+        self.comfyUI.randomise_seeds(workflow)
         self.update_workflow(
             workflow,
             prompt=prompt,
-            negative_prompt=negative_prompt,
-            seed=seed,
+            guidance_scale=guidance_scale,
+            denoise=denoise,
+            width=width,
+            height=height,
+            number_of_images=number_of_images,
+            weird=weird,
         )
 
         wf = self.comfyUI.load_workflow(workflow)

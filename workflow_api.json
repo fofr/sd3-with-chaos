@@ -49,7 +49,7 @@
   },
   "298": {
     "inputs": {
-      "text": "negative prompt",
+      "text": "",
       "clip": [
         "296",
         1
@@ -57,7 +57,7 @@
     },
     "class_type": "CLIPTextEncode",
     "_meta": {
-      "title": "CLIP Text Encode (Negative Prompt)"
+      "title": "CLIP Text Encode (Negative Prompt, not used)"
     }
   },
   "299": {
@@ -287,18 +287,18 @@
       "title": "Text Concatenate"
     }
   },
-  "403": {
+  "404": {
     "inputs": {
-      "preprocessor": "ShufflePreprocessor",
-      "resolution": 1216,
+      "resolution": 1024,
+      "seed": 81119239631242,
       "image": [
         "384",
         0
       ]
     },
-    "class_type": "AIO_Preprocessor",
+    "class_type": "ShufflePreprocessor",
     "_meta": {
-      "title": "AIO Aux Preprocessor"
+      "title": "Content Shuffle"
     }
   }
 }
