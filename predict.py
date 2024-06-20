@@ -139,9 +139,8 @@ class Predictor(BasePredictor):
             weird=weird,
         )
 
-        wf = self.comfyUI.load_workflow(workflow)
         self.comfyUI.connect()
-        self.comfyUI.run_workflow(wf)
+        self.comfyUI.run_workflow(workflow)
 
         return optimise_images.optimise_image_files(
             output_format, output_quality, self.comfyUI.get_files(OUTPUT_DIR)
