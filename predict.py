@@ -80,9 +80,7 @@ class Predictor(BasePredictor):
         if kwargs["weird"]:
             content_shuffle = workflow["404"]["inputs"]
             content_shuffle["resolution"] = kwargs["width"]
-
-            workflow["381"]["inputs"]["image"] = ["404", 0]
-            empty_latent_image["weird"] = True
+            workflow["396"]["inputs"]["image"] = ["404", 0]
 
     def predict(
         self,
