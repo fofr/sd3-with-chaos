@@ -94,7 +94,7 @@
   },
   "305": {
     "inputs": {
-      "filename_prefix": "SD3_t5_fp16",
+      "filename_prefix": "R8_CHAOS",
       "images": [
         "304",
         0
@@ -126,7 +126,7 @@
     },
     "class_type": "EmptySD3LatentImage",
     "_meta": {
-      "title": "16:9"
+      "title": "Empty latent"
     }
   },
   "350": {
