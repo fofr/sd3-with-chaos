@@ -1,15 +1,9 @@
-# An example of how to convert a given API workflow into its own Replicate model
-# Replace predict.py with this file when building your own workflow
-
-import os
 import mimetypes
 import json
-from PIL import Image, ExifTags
-from typing import List
+from typing import Iterator
 from cog import BasePredictor, Input, Path
 from comfyui import ComfyUI
 from cog_model_helpers import optimise_images
-from cog_model_helpers import seed as seed_helper
 
 OUTPUT_DIR = "/tmp/outputs"
 INPUT_DIR = "/tmp/inputs"
@@ -114,7 +108,7 @@ class Predictor(BasePredictor):
         ),
         output_format: str = optimise_images.predict_output_format(),
         output_quality: int = optimise_images.predict_output_quality(),
-    ) -> List[Path]:
+    ) -> Iterator[Path]:
         """Run a single prediction on the model"""
         self.comfyUI.cleanup(ALL_DIRECTORIES)
 
@@ -135,10 +129,25 @@ class Predictor(BasePredictor):
             weird=weird,
         )
 
+        returned_files = []
+
         for i in range(number_of_images):
             self.comfyUI.randomise_seeds(workflow)
             self.comfyUI.run_workflow(workflow)
 
-        return optimise_images.optimise_image_files(
-            output_format, output_quality, self.comfyUI.get_files(OUTPUT_DIR)
-        )
+            all_output_files = self.comfyUI.get_files(OUTPUT_DIR)
+            new_files = [
+                file
+                for file in all_output_files
+                if file.name.rsplit(".", 1)[0] not in returned_files
+            ]
+            optimised_images = optimise_images.optimise_image_files(
+                output_format, output_quality, new_files
+            )
+
+            for image in optimised_images:
+                yield Path(image)
+
+            returned_files.extend(
+                [file.name.rsplit(".", 1)[0] for file in all_output_files]
+            )
