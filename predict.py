@@ -75,7 +75,6 @@ class Predictor(BasePredictor):
         empty_latent_image = workflow["342"]["inputs"]
         empty_latent_image["width"] = kwargs["width"]
         empty_latent_image["height"] = kwargs["height"]
-        empty_latent_image["batch_size"] = kwargs["number_of_images"]
 
         if kwargs["weird"]:
             content_shuffle = workflow["404"]["inputs"]
@@ -122,10 +121,10 @@ class Predictor(BasePredictor):
         width, height = self.aspect_ratio_to_width_height(aspect_ratio)
         denoise = self.chaos_to_denoise(chaos)
 
+        self.comfyUI.connect()
         with open(api_json_file, "r") as file:
             workflow = json.loads(file.read())
 
-        self.comfyUI.randomise_seeds(workflow)
         self.update_workflow(
             workflow,
             prompt=prompt,
@@ -133,12 +132,12 @@ class Predictor(BasePredictor):
             denoise=denoise,
             width=width,
             height=height,
-            number_of_images=number_of_images,
             weird=weird,
         )
 
-        self.comfyUI.connect()
-        self.comfyUI.run_workflow(workflow)
+        for i in range(number_of_images):
+            self.comfyUI.randomise_seeds(workflow)
+            self.comfyUI.run_workflow(workflow)
 
         return optimise_images.optimise_image_files(
             output_format, output_quality, self.comfyUI.get_files(OUTPUT_DIR)
